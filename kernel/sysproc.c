@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "pstat.h"
 
 uint64
 sys_exit(void)
@@ -121,4 +122,36 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+//add this function to create the array in kernel space and then copyout the results
+//because user is not allowed to pass user-space pointer directly to the kernel function
+
+uint64
+sys_getprocs(void)
+{
+	uint64 addr; //addr of stats[]
+	struct pstat pstats[NPROC]; //creates temp array inside kernel
+
+	argaddr(0, &addr); //first arg passed to system call when getprocs(stats) is called
+
+	int count = getprocs(pstats); //fills array and returns how many processes found
+	if(copyout(myproc()-> pagetable, myproc()->sz,  addr, (char *)pstats, count * sizeof(struct pstat)) < 0)
+		return -1; //copyout copies data from kernel memory to user memory return -1 if copyout fails
+	return count; //return number of processes back to ps
+}
+
+uint64
+sys_getpriority(void)
+{
+	return getpriority(); //calls kernel function
+}
+
+uint64
+sys_setpriority(void)
+{
+	int priority;
+	argint(0, &priority); //retrieve priority from the syscall argument - 0 used for first argument
+	return setpriority(priority); //call to kernel function
 }
